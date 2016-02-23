@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <dimen name="edit_text_width_default">300dp</dimen>
+    <dimen name="edit_text_width_small">200dp</dimen>
+    <dimen name="pad_start_unsafe_action">56dp</dimen>
+    <dimen name="pad_start_unsafe_description">56dp</dimen>
+    <dimen name="pad_end_unsafe_action">56dp</dimen>
+    <dimen name="width_action">256dp</dimen>
+    <dimen name="width_description">536dp</dimen>
+    <dimen name="setup_scroll_list_top_padding">0dp</dimen>
+    <dimen name="setup_list_item_icon_margin_end">8dp</dimen>
+    <dimen name="setup_title_height">200dp</dimen>
+    <dimen name="account_content_text_bottom_margin">32dp</dimen>
+    <dimen name="account_content_text_top_margin">13dp</dimen>
+</resources>
