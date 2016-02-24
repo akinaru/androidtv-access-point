@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">Wifi AP</string>
+    <string name="settings_title">Point d\'Accès Wifi</string>
+    <string name="settings_description">Configurer votre point d\'accès</string>
+    <string name="settings_action_title_1">Etat</string>
+    <string name="settings_action_title_2">Nom</string>
+    <string name="settings_action_title_3">Sécurité</string>
+    <string name="settings_action_title_4">Mot de passe</string>
+    <string name="settings_action_description_1"></string>
+    <string name="settings_action_description_2"></string>
+    <string name="settings_action_description_3"></string>
+    <string name="settings_action_description_4">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</string>
+    <string name="settings_action_title_5">Information</string>
+    <string name="settings_action_description_5">adresse IP/MAC</string>
+    <string name="fragment_status_title">Etat du point d\'accès</string>
+    <string name="fragment_security_title">Niveau de sécurité</string>
+    <string name="text_obfuscation_toggle_caption">afficher le mot de passe</string>
+    <string name="dialog_access_point_activation">Activation du point d\'accès</string>
+    <string name="password_type">Saisissez le mot de passe</string>
+    <string name="password_type2">du point d\'accès Wifi</string>
+    <string name="restarting_access_point">Redémarrage du point d\'accès</string>
+    <string name="activating_access_point">Activation du point d\'accès</string>
+    <string name="access_point_active">Activé</string>
+    <string name="access_point_inactive">Désactivé</string>
+    <string name="security_none">Aucune</string>
+
+    <string name="information_title">Information</string>
+    <string name="information_description"></string>
+
+    <string name="access_point_ipv4">Adresse IP</string>
+    <string name="access_point_ipv6">Adresse IPv6</string>
+    <string name="access_point_mac">Adresse MAC</string>
+
+    <string name="settings_action_title_6">Clients</string>
+    <string name="settings_action_description_6"></string>
+
+    <string name="connected_clients">client(s) connecté(s)</string>
+</resources>

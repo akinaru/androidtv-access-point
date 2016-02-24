@@ -10,9 +10,32 @@
     <string name="settings_action_description_2">name your access point</string>
     <string name="settings_action_description_3"></string>
     <string name="settings_action_description_4">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</string>
-    <string name="settings_action_title_5">Exit</string>
-    <string name="settings_action_description_5"></string>
+    <string name="settings_action_title_5">Information</string>
+    <string name="settings_action_description_5">IP/MAC address</string>
     <string name="fragment_status_title">Access Point status</string>
     <string name="fragment_security_title">Access Point security</string>
     <string name="text_obfuscation_toggle_caption">hide password</string>
+    <string name="dialog_access_point_activation">Access Point activation</string>
+    <string name="password_type">Enter password</string>
+    <string name="password_type2">for Wifi Access Point</string>
+    <string name="restarting_access_point">Restarting Access Point</string>
+    <string name="activating_access_point">Activating Access Point</string>
+    <string name="access_point_active">Active</string>
+    <string name="access_point_inactive">Inactive</string>
+    <string name="security_none">None</string>
+
+    <string name="information_title">Information</string>
+    <string name="information_description"></string>
+
+    <string name="access_point_ipv4">IP Address</string>
+    <string name="access_point_ipv6">IPv6 Address</string>
+    <string name="access_point_mac">MAC Address</string>
+
+    <string name="settings_action_title_6">Clients</string>
+    <string name="settings_action_description_6"></string>
+
+    <string name="connected_clients">connected client(s)</string>
+
+    <string name="client_title">Connected clients</string>
+    <string name="client_description"></string>
 </resources>
