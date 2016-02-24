@@ -2,6 +2,7 @@ package fr.bmartel.wifiap.activity;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -15,16 +16,22 @@ import android.provider.Settings;
 import android.support.v17.leanback.app.GuidedStepFragment;
 import android.util.Log;
 
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import cc.mvdan.accesspoint.WifiApControl;
+import fr.bmartel.wifiap.R;
 import fr.bmartel.wifiap.enums.Security;
 import fr.bmartel.wifiap.fragment.SettingsFragment;
+import fr.bmartel.wifiap.inter.IApCommon;
 import fr.bmartel.wifiap.inter.IApWrapper;
-import fr.bmartel.wifiap.model.StorageModel;
+import fr.bmartel.wifiap.model.Constants;
 
-public class WifiApActivity extends Activity implements IApWrapper {
+public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
     private WifiManager mWifiManager;
 
@@ -32,17 +39,17 @@ public class WifiApActivity extends Activity implements IApWrapper {
 
     private static final int REQUEST_WRITE_SETTINGS = 1;
 
-    private List<WifiApControl.Client> mClientList = new ArrayList<>();
-
     private SharedPreferences sharedpreferences;
 
     private final static String TAG = WifiApActivity.class.getSimpleName();
+
+    private int schedulingCounter = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        sharedpreferences = getSharedPreferences(StorageModel.PREFERENCES, Context.MODE_PRIVATE);
+        sharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
 
         if (savedInstanceState == null) {
             GuidedStepFragment.addAsRoot(this, new SettingsFragment(), android.R.id.content);
@@ -67,150 +74,59 @@ public class WifiApActivity extends Activity implements IApWrapper {
                     }).show();
             return;
         }
-        startControl();
-    }
-
-    public void enable() {
-        mWifiManager.setWifiEnabled(false);
-        mAPControl.enable();
-        refresh();
-    }
-
-    private void startControl() {
 
         mWifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 
         mAPControl = WifiApControl.getInstance(this);
-
-        new Thread() {
-            @Override
-            public void run() {
-                try {
-                    while (!isInterrupted()) {
-                        Thread.sleep(1000);
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                refresh();
-                            }
-                        });
-                    }
-                } catch (InterruptedException e) {
-                    // ignored
-                }
-            }
-        }.start();
-    }
-
-    private void refresh() {
-        updateText();
-        listClients(300);
-    }
-
-    private void updateText() {
-        /*
-        StringBuilder sb = new StringBuilder();
-
-        if (!WifiApControl.isSupported()) {
-            sb.append("Warning: Wifi AP mode not supported!\n");
-            sb.append("You should get unknown or zero values below.\n");
-            sb.append("If you don't, isSupported() is probably buggy!\n");
-        }
-
-        if (apControl == null) {
-            sb.append("Something went wrong while trying to get AP control!\n");
-            sb.append("Make sure to grant the app the WRITE_SETTINGS permission.");
-            TextView tv = (TextView) findViewById(R.id.apinfo);
-            tv.setText(sb.toString());
-            return;
-        }
-
-        int state = apControl.getState();
-        sb.append("State: ").append(stateString(state)).append('\n');
-
-        boolean enabled = apControl.isEnabled();
-        sb.append("Enabled: ").append(enabled ? "YES" : "NO").append('\n');
-
-        WifiConfiguration config = apControl.getConfiguration();
-        sb.append("WifiConfiguration:");
-        if (config == null) {
-            sb.append(" null\n");
-        } else {
-            sb.append("\n");
-            sb.append("   SSID: \"").append(config.SSID).append("\"\n");
-            sb.append("   preSharedKey: \"").append(config.preSharedKey).append("\"\n");
-        }
-
-        Inet4Address addr4 = apControl.getInet4Address();
-        sb.append("Inet4Address: ");
-        sb.append(addr4 == null ? "null" : addr4.toString()).append('\n');
-
-        Inet6Address addr6 = apControl.getInet6Address();
-        sb.append("Inet6Address: ");
-        sb.append(addr6 == null ? "null" : addr6.toString()).append('\n');
-
-        sb.append("MAC: ");
-        sb.append(wifiManager.getConnectionInfo().getMacAddress()).append('\n');
-
-        TextView tv = (TextView) findViewById(R.id.apinfo);
-        tv.setText(sb.toString());
-        */
-    }
-
-    private void listClients(int timeout) {
-        if (mAPControl == null) {
-            return;
-        }
-        /*
-        List<WifiApControl.Client> clients = apControl.getReachableClients(timeout,
-                new WifiApControl.ReachableClientListener() {
-                    public void onReachableClient(final WifiApControl.Client client) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                adapter.setReachable(client);
-                            }
-                        });
-                    }
-
-                    public void onComplete() {
-                    }
-                });
-
-        clientList = clients;
-        */
-    }
-
-    private static String stateString(int state) {
-        switch (state) {
-            case WifiApControl.STATE_FAILED:
-                return "FAILED";
-            case WifiApControl.STATE_DISABLED:
-                return "DISABLED";
-            case WifiApControl.STATE_DISABLING:
-                return "DISABLING";
-            case WifiApControl.STATE_ENABLED:
-                return "ENABLED";
-            case WifiApControl.STATE_ENABLING:
-                return "ENABLING";
-            default:
-                return "UNKNOWN!";
-        }
     }
 
     @Override
     public boolean getState() {
-        return mAPControl.isEnabled();
+        return WifiApControl.getInstance(this).isEnabled();
     }
 
     @Override
     public String getName() {
-        return sharedpreferences.getString(StorageModel.SSID, StorageModel.DEFAULT_SSID);
+        return sharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
     }
 
     @Override
     public Security getSecurity() {
-        return Security.getSecurity(sharedpreferences.getInt(StorageModel.SECURITY, StorageModel.DEFAULT_SECURITY.ordinal()));
+        return Security.getSecurity(sharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()));
+    }
+
+    @Override
+    public String getIpv4Addr() {
+        Inet4Address adress = WifiApControl.getInstance(this).getInet4Address();
+        if (adress != null)
+            return adress.toString();
+        return "";
+    }
+
+    @Override
+    public String getIpv6Addr() {
+        Inet6Address adress = WifiApControl.getInstance(this).getInet6Address();
+        if (adress != null)
+            return adress.toString();
+        return "";
+    }
+
+    @Override
+    public String getMacAddr() {
+        if (mWifiManager != null && mWifiManager.getConnectionInfo() != null && mWifiManager.getConnectionInfo().getMacAddress() != null)
+            return mWifiManager.getConnectionInfo().getMacAddress();
+        return "";
+    }
+
+    @Override
+    public List<WifiApControl.Client> getClientList() {
+        if (WifiApControl.getInstance(this).getClients() != null)
+            return WifiApControl.getInstance(this).getClients();
+        else {
+
+            Log.i(TAG,"null");
+            return new ArrayList<>();
+        }
     }
 
     @Override
@@ -218,12 +134,17 @@ public class WifiApActivity extends Activity implements IApWrapper {
 
         if (state) {
             WifiConfiguration config = new WifiConfiguration();
-            config.SSID = sharedpreferences.getString(StorageModel.SSID, StorageModel.DEFAULT_SSID);
+            config.SSID = sharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
             config.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
-            config.preSharedKey = sharedpreferences.getString(StorageModel.PASSWORD, StorageModel.DEFAULT_PASSWORD);
+
+            String defaultKey = "";
+            if (WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey != null)
+                defaultKey = WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey;
+
+            config.preSharedKey = sharedpreferences.getString(Constants.PASSWORD, defaultKey);
             config.hiddenSSID = false;
 
-            switch (Security.getSecurity(sharedpreferences.getInt(StorageModel.SECURITY, StorageModel.DEFAULT_SECURITY.ordinal()))) {
+            switch (Security.getSecurity(sharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()))) {
                 case WPA_PSK:
                     config.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
                     config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
@@ -240,11 +161,46 @@ public class WifiApActivity extends Activity implements IApWrapper {
 
             Log.i(TAG, "enabling Wifi AP");
             mWifiManager.setWifiEnabled(false);
-            mAPControl.setEnabled(config, true);
+            WifiApControl.getInstance(this).setEnabled(config, true);
         } else {
             Log.i(TAG, "disabling Wifi AP");
-            mAPControl.disable();
+            WifiApControl.getInstance(this).disable();
         }
 
+    }
+
+    @Override
+    public void waitForActivation(String message, final Runnable task) {
+
+        final ProgressDialog progress = ProgressDialog.show(this, getResources().getString(R.string.dialog_access_point_activation),
+                message + "...", true);
+
+        final Timer timer = new Timer();
+
+        schedulingCounter = 0;
+
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+
+                schedulingCounter++;
+                if (getState()) {
+                    timer.cancel();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progress.dismiss();
+                        }
+                    });
+                    if (task != null) {
+                        task.run();
+                    }
+                }
+                if (schedulingCounter == 6) {
+                    timer.cancel();
+                    return;
+                }
+            }
+        }, 0, 500);
     }
 }

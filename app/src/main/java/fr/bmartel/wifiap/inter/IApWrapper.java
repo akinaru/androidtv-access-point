@@ -1,5 +1,8 @@
 package fr.bmartel.wifiap.inter;
 
+import java.util.List;
+
+import cc.mvdan.accesspoint.WifiApControl;
 import fr.bmartel.wifiap.enums.Security;
 
 /**
@@ -7,11 +10,15 @@ import fr.bmartel.wifiap.enums.Security;
  */
 public interface IApWrapper {
 
-    boolean getState();
-
     String getName();
 
     Security getSecurity();
 
-    void setState(boolean state);
+    String getIpv4Addr();
+
+    String getIpv6Addr();
+
+    String getMacAddr();
+
+    List<WifiApControl.Client> getClientList();
 }

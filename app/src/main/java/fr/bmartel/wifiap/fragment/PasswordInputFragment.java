@@ -24,6 +24,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.text.InputType;
 import android.text.method.PasswordTransformationMethod;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -36,7 +37,9 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import fr.bmartel.wifiap.R;
-import fr.bmartel.wifiap.model.StorageModel;
+import fr.bmartel.wifiap.inter.IApCommon;
+import fr.bmartel.wifiap.inter.IApPassword;
+import fr.bmartel.wifiap.model.Constants;
 
 /**
  * Displays a UI for text input in the "wizard" style.
@@ -54,6 +57,8 @@ public class PasswordInputFragment extends Fragment {
         boolean onPasswordInputComplete(String text);
     }
 
+    private static final String TAG = PasswordInputFragment.class.getSimpleName();
+
     private static final String EXTRA_TITLE = "title";
     private static final String EXTRA_DESCRIPTION = "description";
     private static final String EXTRA_INPUT_TYPE = "input_type";
@@ -65,9 +70,9 @@ public class PasswordInputFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        sharedpreferences = getActivity().getSharedPreferences(StorageModel.PREFERENCES, Context.MODE_PRIVATE);
+        sharedpreferences = getActivity().getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
     }
-    
+
     public static PasswordInputFragment newInstance(
             String title, String description, int inputType, String prefill) {
         return newInstance(title, description, inputType, prefill, null);
@@ -114,8 +119,8 @@ public class PasswordInputFragment extends Fragment {
 
         TextView editSuffixText = (TextView) action.findViewById(R.id.edit_suffix_text);
 
-        String title = "Saisissez le mot de passe";
-        String description = "du point d'accès Wifi";
+        String title = getResources().getString(R.string.password_type);
+        String description = getResources().getString(R.string.password_type2);
         int inputType = 1;
         String prefill = "";
         String editSuffix = "";
@@ -159,6 +164,8 @@ public class PasswordInputFragment extends Fragment {
             }
         });
 
+        textObsufactionToggle.setChecked(true);
+
         if (textObsufactionToggle.isChecked()) {
             mTextInput.setTransformationMethod(new PasswordTransformationMethod());
         }
@@ -171,22 +178,44 @@ public class PasswordInputFragment extends Fragment {
             mTextInput.setSelection(mTextInput.getText().length(), mTextInput.getText().length());
         }
 
+        final IApPassword passwordWrapper = (IApPassword) getActivity();
+        final IApCommon accessPointWrapper = (IApCommon) getActivity();
+
         mTextInput.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
 
                     SharedPreferences.Editor editor = sharedpreferences.edit();
-                    editor.putString(StorageModel.PASSWORD, mTextInput.getText().toString());
+                    editor.putString(Constants.PASSWORD, mTextInput.getText().toString());
                     editor.commit();
 
-                    getActivity().finish();
+                    if (accessPointWrapper.getState()) {
+                        Log.i(TAG, "restarting AP");
+                        accessPointWrapper.setState(false);
+                        new Handler().postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                accessPointWrapper.setState(true);
+                                accessPointWrapper.waitForActivation(getResources().getString(R.string.restarting_access_point), new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        getActivity().finish();
+                                    }
+                                });
+                            }
+                        }, Constants.TIMEOUT_AP_ACTIVATION);
+                    } else {
+                        getActivity().finish();
+                    }
                     return false;
                 }
                 return true;  // If we don't return true on ACTION_DOWN, we don't get the ACTION_UP.
             }
         });
 
+        mTextInput.setText(passwordWrapper.getPassword());
+        mTextInput.setSelection(mTextInput.getText().length());
         return view;
     }
 

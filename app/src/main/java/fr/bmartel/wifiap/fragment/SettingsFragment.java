@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v17.leanback.app.GuidedStepFragment;
 import android.support.v17.leanback.widget.GuidanceStylist;
@@ -16,14 +17,18 @@ import android.view.View;
 import android.widget.TextView;
 
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import cc.mvdan.accesspoint.WifiApControl;
 import fr.bmartel.wifiap.R;
 import fr.bmartel.wifiap.activity.PasswordActivity;
 import fr.bmartel.wifiap.enums.ConfigurationParam;
-import fr.bmartel.wifiap.enums.Security;
+import fr.bmartel.wifiap.inter.IApCommon;
 import fr.bmartel.wifiap.inter.IApWrapper;
-import fr.bmartel.wifiap.model.StorageModel;
+import fr.bmartel.wifiap.model.Constants;
 
 /**
  * Created by iLab on 11/12/2015
@@ -36,10 +41,15 @@ public class SettingsFragment extends GuidedStepFragment {
 
     private SharedPreferences sharedpreferences;
 
+    private ScheduledExecutorService scheduler;
+
+    private ScheduledFuture<?> task;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        sharedpreferences = getActivity().getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
+        scheduler = Executors.newScheduledThreadPool(1);
         super.onCreate(savedInstanceState);
-        sharedpreferences = getActivity().getSharedPreferences(StorageModel.PREFERENCES, Context.MODE_PRIVATE);
     }
 
     @Override
@@ -57,20 +67,22 @@ public class SettingsFragment extends GuidedStepFragment {
         getActions().get(1).setDescription(editTitle);
 
         SharedPreferences.Editor editor = sharedpreferences.edit();
-        editor.putString(StorageModel.SSID, editTitle.toString());
+        editor.putString(Constants.SSID, editTitle.toString());
         editor.commit();
 
-        /*
-        CharSequence textFromView = editText.getText();
+        final IApCommon accessPointWrapper = (IApCommon) getActivity();
 
-        String s = "Editable action: " +
-                "\ntitle: " + title +
-                "\neditTitle: " + editTitle +
-                "\ndescription: " + description +
-                "\ntextFromView: " + textFromView;
-
-        Toast.makeText(getActivity(), s, Toast.LENGTH_LONG).show();
-        */
+        if (accessPointWrapper.getState()) {
+            Log.i(TAG, "restarting AP");
+            accessPointWrapper.setState(false);
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    accessPointWrapper.setState(true);
+                    accessPointWrapper.waitForActivation(getResources().getString(R.string.restarting_access_point), null);
+                }
+            }, Constants.TIMEOUT_AP_ACTIVATION);
+        }
     }
 
     @NonNull
@@ -85,62 +97,71 @@ public class SettingsFragment extends GuidedStepFragment {
     @Override
     public void onCreateActions(@NonNull List<GuidedAction> actions, Bundle savedInstanceState) {
 
-        IApWrapper wrapper = (IApWrapper) getActivity();
+        final IApWrapper wrapper = (IApWrapper) getActivity();
+        IApCommon accessPointWrapper = (IApCommon) getActivity();
 
-        String state = "Inactive";
+        String state = getActivity().getResources().getString(R.string.access_point_inactive);
 
-        if (wrapper.getState())
-            state = "Active";
+        if (accessPointWrapper.getState())
+            state = getActivity().getResources().getString(R.string.access_point_active);
 
-        addAction(actions, ConfigurationParam.ACTIVATION.ordinal(), getResources().getString(R.string.settings_action_title_1), state);
+        addAction(actions, ConfigurationParam.STATE.ordinal(), getResources().getString(R.string.settings_action_title_1), state);
         addEditableAction(actions, ConfigurationParam.AP_NAME.ordinal(), getResources().getString(R.string.settings_action_title_2), wrapper.getName());
-        addAction(actions, ConfigurationParam.SECURITY.ordinal(), getResources().getString(R.string.settings_action_title_3), wrapper.getSecurity().toString());
+
+        String securityStr = getActivity().getResources().getString(R.string.security_none);
+        switch (wrapper.getSecurity()) {
+            case WPA2_PSK:
+                securityStr = "WPA2 PSK";
+                break;
+            case WPA_PSK:
+                securityStr = "WPA PSK";
+                break;
+        }
+        addAction(actions, ConfigurationParam.SECURITY.ordinal(), getResources().getString(R.string.settings_action_title_3), securityStr);
         addAction(actions, ConfigurationParam.PASSWORD.ordinal(), getResources().getString(R.string.settings_action_title_4), getResources().getString(R.string.settings_action_description_4));
+        addAction(actions, ConfigurationParam.INFORMATION.ordinal(), getResources().getString(R.string.settings_action_title_5), getResources().getString(R.string.settings_action_description_5));
+        addAction(actions, ConfigurationParam.CLIENTS.ordinal(), getResources().getString(R.string.settings_action_title_6), wrapper.getClientList().size() + " " + getResources().getString(R.string.connected_clients));
+
+        task = scheduler.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Log.i(TAG,"iterate");
+                        getActions().get(5).setDescription(wrapper.getClientList().size() + " " + getResources().getString(R.string.connected_clients));
+                        getGuidedActionsStylist().getActionsGridView().getAdapter().notifyDataSetChanged();
+                    }
+                });
+            }
+        }, 0, 1000, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (task != null) {
+            task.cancel(true);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
     }
 
     @Override
     public void onGuidedActionClicked(GuidedAction action) {
-
-        Log.i(TAG, "click");
-
-        final IApWrapper wrapper = (IApWrapper) getActivity();
 
         FragmentManager fm = getFragmentManager();
 
         ConfigurationParam id = ConfigurationParam.getConfig((int) action.getId());
 
         switch (id) {
-            case ACTIVATION:
+            case STATE:
                 GuidedStepFragment.add(fm, new StatusFragment());
                 break;
             case AP_NAME:
-                /*
-                final AlertDialog alertDialog = new AlertDialog.Builder(getActivity()).create();
-                alertDialog.setTitle("Access Point Name");
-                alertDialog.setMessage("");
-                alertDialog.setIcon(R.drawable.tethering);
-                final EditText input = new EditText(getActivity());
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.MATCH_PARENT);
-                input.setLayoutParams(lp);
-                input.setText(wrapper.getName());
-                alertDialog.setView(input);
-                input.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-                    @Override
-                    public boolean onEditorAction(final TextView v, int actionId, KeyEvent event) {
-                        if ((event != null && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) || (actionId == EditorInfo.IME_ACTION_DONE)) {
-                            Log.i(TAG, "set name to " + v.getText().toString());
-                            wrapper.setName(v.getText().toString());
-                            getActions().get(1).setTitle(v.getText().toString());
-
-                            alertDialog.dismiss();
-                        }
-                        return false;
-                    }
-                });
-                alertDialog.show();
-                */
                 break;
             case SECURITY:
                 GuidedStepFragment.add(fm, new SecurityFragment());
@@ -149,35 +170,12 @@ public class SettingsFragment extends GuidedStepFragment {
 
                 Intent intent = new Intent(getActivity(), PasswordActivity.class);
                 startActivity(intent);
-                /*
-                final AlertDialog alertDialogPass = new AlertDialog.Builder(getActivity()).create();
-                alertDialogPass.setTitle("Access Point Password");
-                alertDialogPass.setMessage("");
-                alertDialogPass.setIcon(R.drawable.tethering);
-                final EditText inputPass = new EditText(getActivity());
-                LinearLayout.LayoutParams lpPass = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.MATCH_PARENT);
-                inputPass.setLayoutParams(lpPass);
-                inputPass.setTransformationMethod(PasswordTransformationMethod.getInstance());
-                inputPass.setText(wrapper.getName());
-                alertDialogPass.setView(inputPass);
-                inputPass.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-                    @Override
-                    public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                        if ((event != null && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) || (actionId == EditorInfo.IME_ACTION_DONE)) {
-                            wrapper.setPassword(v.getText().toString());
-                            getActions().get(3).setDescription(v.getText().toString());
-                            alertDialogPass.dismiss();
-                        }
-                        return false;
-                    }
-                });
-                alertDialogPass.show();
-                */
                 break;
-            case BACK:
-                getActivity().finish();
+            case INFORMATION:
+                GuidedStepFragment.add(fm, new InformationFragment());
+                break;
+            case CLIENTS:
+                GuidedStepFragment.add(fm, new ClientFragment());
                 break;
             default:
                 break;
@@ -205,16 +203,29 @@ public class SettingsFragment extends GuidedStepFragment {
     @Override
     public void onResume() {
         super.onResume();
+
+        IApCommon accessPointWrapper = (IApCommon) getActivity();
         IApWrapper wrapper = (IApWrapper) getActivity();
 
-        int security = sharedpreferences.getInt(StorageModel.SECURITY, StorageModel.DEFAULT_SECURITY.ordinal());
-        String name = sharedpreferences.getString(StorageModel.SSID, StorageModel.DEFAULT_SSID);
+        String name = sharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
 
-        getActions().get(2).setDescription(Security.getSecurity(security).toString());
+        String securityStr = getActivity().getResources().getString(R.string.security_none);
+        switch (wrapper.getSecurity()) {
+            case WPA2_PSK:
+                securityStr = "WPA2 PSK";
+                break;
+            case WPA_PSK:
+                securityStr = "WPA PSK";
+                break;
+        }
+
+        getActions().get(2).setDescription(securityStr);
         getActions().get(1).setDescription(name);
-        String state = "Inactive";
-        if (wrapper.getState())
-            state = "Active";
+        String state = getActivity().getResources().getString(R.string.access_point_inactive);
+        ;
+        if (accessPointWrapper.getState())
+            state = getActivity().getResources().getString(R.string.access_point_active);
+        ;
         getActions().get(0).setDescription(state);
     }
 }

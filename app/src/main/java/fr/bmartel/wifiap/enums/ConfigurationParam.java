@@ -5,11 +5,12 @@ package fr.bmartel.wifiap.enums;
  */
 public enum ConfigurationParam {
 
-    ACTIVATION(0),
+    STATE(0),
     AP_NAME(1),
     SECURITY(2),
     PASSWORD(3),
-    BACK(4);
+    INFORMATION(4),
+    CLIENTS(5);
 
     private int value = 0;
 
@@ -21,7 +22,7 @@ public enum ConfigurationParam {
 
         switch (value) {
             case 0:
-                return ACTIVATION;
+                return STATE;
             case 1:
                 return AP_NAME;
             case 2:
@@ -29,8 +30,10 @@ public enum ConfigurationParam {
             case 3:
                 return PASSWORD;
             case 4:
-                return BACK;
+                return INFORMATION;
+            case 5:
+                return CLIENTS;
         }
-        return ACTIVATION;
+        return STATE;
     }
 }

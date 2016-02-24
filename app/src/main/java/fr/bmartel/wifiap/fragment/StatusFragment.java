@@ -1,20 +1,16 @@
 package fr.bmartel.wifiap.fragment;
 
 import android.graphics.drawable.Drawable;
-import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v17.leanback.app.GuidedStepFragment;
 import android.support.v17.leanback.widget.GuidanceStylist;
 import android.support.v17.leanback.widget.GuidedAction;
-import android.util.Log;
 
 import java.util.List;
 
-import fr.bmartel.android.multievent.MultiEvent;
-import fr.bmartel.android.multievent.listener.IConnectivityListener;
 import fr.bmartel.wifiap.R;
-import fr.bmartel.wifiap.inter.IApWrapper;
+import fr.bmartel.wifiap.inter.IApCommon;
 
 /**
  * Created by iLab on 11/12/2015
@@ -27,20 +23,6 @@ public class StatusFragment extends GuidedStepFragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        MultiEvent eventManager = new MultiEvent(getActivity());
-        eventManager.addConnectivityChangeListener(new IConnectivityListener() {
-
-            @Override
-            public void onWifiStateChange(NetworkInfo.State formerState, NetworkInfo.State newState) {
-                Log.i(TAG,"[WIFI STATE CHANGE] from state " + formerState + " to " + newState);
-            }
-
-            @Override
-            public void onEthernetStateChange(NetworkInfo.State formerState, NetworkInfo.State newState) {
-                Log.i(TAG,"[ETHERNET STATE CHANGE] from state " + formerState + " to " + newState);
-            }
-        });
-
     }
 
     @NonNull
@@ -53,15 +35,15 @@ public class StatusFragment extends GuidedStepFragment {
 
     @Override
     public void onCreateActions(@NonNull List<GuidedAction> actions, Bundle savedInstanceState) {
-        addCheckedAction(actions, "Activé", false);
-        addCheckedAction(actions, "Désactivé", false);
-        refresh();
+        addCheckedAction(actions, getActivity().getResources().getString(R.string.access_point_active), false);
+        addCheckedAction(actions, getActivity().getResources().getString(R.string.access_point_inactive), false);
+        setCheck();
     }
 
-    private void refresh() {
-        IApWrapper wrapper = (IApWrapper) getActivity();
+    private void setCheck() {
+        IApCommon accessPointWrapper = (IApCommon) getActivity();
 
-        if (wrapper.getState())
+        if (accessPointWrapper.getState())
             getActions().get(0).setChecked(true);
         else
             getActions().get(1).setChecked(true);
@@ -70,14 +52,20 @@ public class StatusFragment extends GuidedStepFragment {
     @Override
     public void onGuidedActionClicked(GuidedAction action) {
 
-        IApWrapper wrapper = (IApWrapper) getActivity();
+        IApCommon accessPointWrapper = (IApCommon) getActivity();
 
-        if (getSelectedActionPosition() == 0)
-            wrapper.setState(true);
-        else
-            wrapper.setState(false);
-
-        getFragmentManager().popBackStack();
+        if (getSelectedActionPosition() == 0) {
+            accessPointWrapper.setState(true);
+            accessPointWrapper.waitForActivation(getActivity().getResources().getString(R.string.activating_access_point), new Runnable() {
+                @Override
+                public void run() {
+                    getFragmentManager().popBackStack();
+                }
+            });
+        } else {
+            accessPointWrapper.setState(false);
+            getFragmentManager().popBackStack();
+        }
     }
 
     private static void addCheckedAction(List<GuidedAction> actions, String title, boolean checked) {

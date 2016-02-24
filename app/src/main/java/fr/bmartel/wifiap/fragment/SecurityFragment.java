@@ -4,17 +4,20 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v17.leanback.app.GuidedStepFragment;
 import android.support.v17.leanback.widget.GuidanceStylist;
 import android.support.v17.leanback.widget.GuidedAction;
+import android.util.Log;
 
 import java.util.List;
 
 import fr.bmartel.wifiap.R;
 import fr.bmartel.wifiap.enums.Security;
+import fr.bmartel.wifiap.inter.IApCommon;
 import fr.bmartel.wifiap.inter.IApWrapper;
-import fr.bmartel.wifiap.model.StorageModel;
+import fr.bmartel.wifiap.model.Constants;
 
 /**
  * Created by iLab on 11/12/2015
@@ -29,7 +32,7 @@ public class SecurityFragment extends GuidedStepFragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        sharedpreferences = getActivity().getSharedPreferences(StorageModel.PREFERENCES, Context.MODE_PRIVATE);
+        sharedpreferences = getActivity().getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
     }
 
     @NonNull
@@ -50,7 +53,7 @@ public class SecurityFragment extends GuidedStepFragment {
     public void onCreateActions(@NonNull List<GuidedAction> actions, Bundle savedInstanceState) {
         addCheckedAction(actions, "WPA PSK", false);
         addCheckedAction(actions, "WPA2 PSK", false);
-        addCheckedAction(actions, "NONE", false);
+        addCheckedAction(actions, getActivity().getResources().getString(R.string.security_none), false);
 
         refresh();
     }
@@ -74,7 +77,7 @@ public class SecurityFragment extends GuidedStepFragment {
     @Override
     public void onGuidedActionClicked(GuidedAction action) {
 
-        IApWrapper wrapper = (IApWrapper) getActivity();
+        final IApCommon accessPointWrapper = (IApCommon) getActivity();
 
         int security = Security.NONE.ordinal();
 
@@ -93,10 +96,27 @@ public class SecurityFragment extends GuidedStepFragment {
         }
 
         SharedPreferences.Editor editor = sharedpreferences.edit();
-        editor.putInt(StorageModel.SECURITY, security);
+        editor.putInt(Constants.SECURITY, security);
         editor.commit();
 
-        getFragmentManager().popBackStack();
+        if (accessPointWrapper.getState()) {
+            Log.i(TAG, "restarting AP");
+            accessPointWrapper.setState(false);
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    accessPointWrapper.setState(true);
+                    accessPointWrapper.waitForActivation(getResources().getString(R.string.restarting_access_point), new Runnable() {
+                        @Override
+                        public void run() {
+                            getFragmentManager().popBackStack();
+                        }
+                    });
+                }
+            }, Constants.TIMEOUT_AP_ACTIVATION);
+        } else {
+            getFragmentManager().popBackStack();
+        }
     }
 
     private static void addCheckedAction(List<GuidedAction> actions, String title, boolean checked) {
