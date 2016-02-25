@@ -9,13 +9,12 @@ import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.support.v17.leanback.app.GuidedStepFragment;
 import android.util.Log;
+import android.widget.Toast;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -51,6 +50,8 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
     private ScheduledExecutorService mScheduler;
 
     private ScheduledFuture<?> mTask;
+
+    private ScheduledFuture<?> mScheduledActivation;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -221,6 +222,7 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
                 }
 
                 Log.i(TAG, "enabling Wifi AP");
+
                 mWifiManager.setWifiEnabled(false);
                 WifiApControl.getInstance(this).setEnabled(config, true);
             } else {
@@ -228,7 +230,6 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
                 WifiApControl.getInstance(this).disable();
             }
         }
-
     }
 
     @Override
@@ -237,17 +238,15 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
         final ProgressDialog progress = ProgressDialog.show(this, getResources().getString(R.string.dialog_access_point_activation),
                 message + "...", true);
 
-        final Timer timer = new Timer();
-
         mSchedulingCounter = 0;
 
-        timer.scheduleAtFixedRate(new TimerTask() {
+
+        mScheduledActivation = mScheduler.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
 
                 mSchedulingCounter++;
                 if (getState()) {
-                    timer.cancel();
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -257,13 +256,24 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
                     if (task != null) {
                         task.run();
                     }
+                    if (mScheduledActivation != null)
+                        mScheduledActivation.cancel(true);
+                    return;
                 }
                 if (mSchedulingCounter == 6) {
-                    timer.cancel();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progress.dismiss();
+                            Toast.makeText(WifiApActivity.this, getResources().getString(R.string.error_connection), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                    if (mScheduledActivation != null)
+                        mScheduledActivation.cancel(true);
                     return;
                 }
             }
-        }, 0, 500);
+        }, 0, 500, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -272,5 +282,7 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
         mListener = null;
         if (mTask != null)
             mTask.cancel(true);
+        if (mScheduledActivation != null)
+            mScheduledActivation.cancel(true);
     }
 }

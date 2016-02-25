@@ -35,4 +35,5 @@
     <string name="client_description"></string>
     <string name="new_client_connected_toast">Un nouvel appareil s\'est connecté au point d\'accès</string>
     <string name="client_disconnected_toast">Un client s\'est déconnecté du point d\'accès</string>
+    <string name="error_connection">Une erreur s\'est produite lors de la création du point d\'accès</string>
 </resources>

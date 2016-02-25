@@ -35,4 +35,5 @@
     <string name="client_description"></string>
     <string name="new_client_connected_toast">A new client has connected to Wifi Access Point</string>
     <string name="client_disconnected_toast">A client has disconnected from Wifi Access Point</string>
+    <string name="error_connection">An error occured while activating access point</string>
 </resources>
