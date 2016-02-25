@@ -1,3 +1,26 @@
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2016 Bertrand Martel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package fr.bmartel.wifiap.activity;
 
 import android.app.Activity;
@@ -29,38 +52,67 @@ import fr.bmartel.wifiap.inter.IApWrapper;
 import fr.bmartel.wifiap.listener.IClientListener;
 import fr.bmartel.wifiap.model.Constants;
 
+/**
+ * Main activity
+ *
+ * @author Bertrand Martel
+ */
 public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
+    /**
+     * Wifi manager
+     */
     private WifiManager mWifiManager;
 
+    /**
+     * Wifi Acces point manager
+     */
     private WifiApControl mAPControl;
 
-    private static final int REQUEST_WRITE_SETTINGS = 1;
-
+    /**
+     * shared preferences instance
+     */
     private SharedPreferences mSharedpreferences;
 
     private final static String TAG = WifiApActivity.class.getSimpleName();
 
+    /**
+     * counter for AP activation timeout control
+     */
     private int mSchedulingCounter = 0;
 
+    /**
+     * map of clients connecte to AP
+     */
     private Map<String, String> mClientMap = new HashMap<>();
 
+    /**
+     * listener used by fragments to listen for connected clients
+     */
     private IClientListener mListener;
 
+    /**
+     * scheduled threadpool of size 1
+     */
     private ScheduledExecutorService mScheduler;
 
+    /**
+     * task looking for connected clients
+     */
     private ScheduledFuture<?> mTask;
 
+    /**
+     * task looking for AP activation state
+     */
     private ScheduledFuture<?> mScheduledActivation;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         mScheduler = Executors.newScheduledThreadPool(1);
+        mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
 
         super.onCreate(savedInstanceState);
-
-        mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
 
         if (savedInstanceState == null) {
             GuidedStepFragment.addAsRoot(this, new SettingsFragment(), android.R.id.content);
@@ -68,6 +120,9 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
         init();
     }
 
+    /**
+     * initialize AP manager & WIfi manager
+     */
     public void init() {
 
         /*
@@ -97,7 +152,10 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
         mAPControl = WifiApControl.getInstance(this);
     }
 
-    private void startTask() {
+    /**
+     * look for connected clients
+     */
+    private void starLookingForClient() {
 
         mTask = mScheduler.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -191,7 +249,7 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
     public void restartRequestClient() {
         if (mTask != null)
             mTask.cancel(true);
-        startTask();
+        starLookingForClient();
     }
 
     @Override
