@@ -18,6 +18,7 @@ import fr.bmartel.wifiap.enums.Security;
 import fr.bmartel.wifiap.inter.IApCommon;
 import fr.bmartel.wifiap.inter.IApPassword;
 import fr.bmartel.wifiap.model.Constants;
+import fr.bmartel.wifiap.util.RandomString;
 
 /**
  * Created by akinaru on 23/02/16.
@@ -47,10 +48,15 @@ public class PasswordActivity extends FragmentActivity implements IApPassword, I
 
     @Override
     public String getPassword() {
-        if (mAPControl.getWifiApConfiguration().preSharedKey != null)
+        if (mAPControl.getWifiApConfiguration().preSharedKey != null && !mAPControl.getWifiApConfiguration().preSharedKey.equals(""))
             return mAPControl.getWifiApConfiguration().preSharedKey;
-        else
-            return "";
+        else {
+            String password = new RandomString(8).nextString();
+            SharedPreferences.Editor editor = sharedpreferences.edit();
+            editor.putString(Constants.PASSWORD, password);
+            editor.commit();
+            return password;
+        }
     }
 
     @Override
