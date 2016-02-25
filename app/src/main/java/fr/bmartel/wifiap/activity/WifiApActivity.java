@@ -138,11 +138,15 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
     @Override
     public String getName() {
+        if (mSharedpreferences == null)
+            mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
         return mSharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
     }
 
     @Override
     public Security getSecurity() {
+        if (mSharedpreferences == null)
+            mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
         return Security.getSecurity(mSharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()));
     }
 
@@ -192,6 +196,9 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
     @Override
     public void setState(boolean state) {
+
+        if (mSharedpreferences == null)
+            mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
 
         if (WifiApControl.getInstance(this) != null) {
             if (state) {

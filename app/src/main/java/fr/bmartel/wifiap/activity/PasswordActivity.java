@@ -48,6 +48,10 @@ public class PasswordActivity extends FragmentActivity implements IApPassword, I
 
     @Override
     public String getPassword() {
+
+        if (sharedpreferences == null)
+            sharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
+
         if (mAPControl.getWifiApConfiguration().preSharedKey != null && !mAPControl.getWifiApConfiguration().preSharedKey.equals(""))
             return mAPControl.getWifiApConfiguration().preSharedKey;
         else {
@@ -66,6 +70,9 @@ public class PasswordActivity extends FragmentActivity implements IApPassword, I
 
     @Override
     public void setState(boolean state) {
+
+        if (sharedpreferences == null)
+            sharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
 
         if (state) {
             WifiConfiguration config = new WifiConfiguration();
