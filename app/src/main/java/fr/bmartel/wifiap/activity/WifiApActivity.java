@@ -1,18 +1,12 @@
 package fr.bmartel.wifiap.activity;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.support.v17.leanback.app.GuidedStepFragment;
 import android.util.Log;
 
@@ -75,21 +69,27 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
     public void init() {
 
+        /*
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(this)) {
             new AlertDialog.Builder(this)
                     .setMessage("Allow reading/writing the system settings? Necessary to set up access points.")
                     .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
+                            Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS);
                             intent.setData(Uri.parse("package:" + getPackageName()));
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-                            startActivityForResult(intent, REQUEST_WRITE_SETTINGS);
+                            try {
+                                startActivity(intent);
+                            } catch (Exception e) {
+                                Log.e(TAG, "error starting permission intent", e);
+                            }
                         }
                     }).show();
             return;
         }
+        */
 
         mWifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 
@@ -130,7 +130,9 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
     @Override
     public boolean getState() {
-        return WifiApControl.getInstance(this).isEnabled();
+        if (WifiApControl.getInstance(this) != null)
+            return WifiApControl.getInstance(this).isEnabled();
+        return false;
     }
 
     @Override
@@ -145,17 +147,21 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
     @Override
     public String getIpv4Addr() {
-        Inet4Address adress = WifiApControl.getInstance(this).getInet4Address();
-        if (adress != null)
-            return adress.toString();
+        if (WifiApControl.getInstance(this) != null) {
+            Inet4Address adress = WifiApControl.getInstance(this).getInet4Address();
+            if (adress != null)
+                return adress.toString();
+        }
         return "";
     }
 
     @Override
     public String getIpv6Addr() {
-        Inet6Address adress = WifiApControl.getInstance(this).getInet6Address();
-        if (adress != null)
-            return adress.toString();
+        if (WifiApControl.getInstance(this) != null) {
+            Inet6Address adress = WifiApControl.getInstance(this).getInet6Address();
+            if (adress != null)
+                return adress.toString();
+        }
         return "";
     }
 
@@ -186,39 +192,41 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
     @Override
     public void setState(boolean state) {
 
-        if (state) {
-            WifiConfiguration config = new WifiConfiguration();
-            config.SSID = mSharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
-            config.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
+        if (WifiApControl.getInstance(this) != null) {
+            if (state) {
+                WifiConfiguration config = new WifiConfiguration();
+                config.SSID = mSharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
+                config.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
 
-            String defaultKey = "";
-            if (WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey != null)
-                defaultKey = WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey;
+                String defaultKey = "";
+                if (WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey != null)
+                    defaultKey = WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey;
 
-            config.preSharedKey = mSharedpreferences.getString(Constants.PASSWORD, defaultKey);
-            config.hiddenSSID = false;
+                config.preSharedKey = mSharedpreferences.getString(Constants.PASSWORD, defaultKey);
+                config.hiddenSSID = false;
 
-            switch (Security.getSecurity(mSharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()))) {
-                case WPA_PSK:
-                    config.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
-                    config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
-                    config.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
-                    config.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
-                    break;
-                case WPA2_PSK:
-                    config.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
-                    config.allowedKeyManagement.set(4);
-                    config.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
-                    config.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
-                    break;
+                switch (Security.getSecurity(mSharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()))) {
+                    case WPA_PSK:
+                        config.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
+                        config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+                        config.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
+                        config.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
+                        break;
+                    case WPA2_PSK:
+                        config.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
+                        config.allowedKeyManagement.set(4);
+                        config.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
+                        config.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
+                        break;
+                }
+
+                Log.i(TAG, "enabling Wifi AP");
+                mWifiManager.setWifiEnabled(false);
+                WifiApControl.getInstance(this).setEnabled(config, true);
+            } else {
+                Log.i(TAG, "disabling Wifi AP");
+                WifiApControl.getInstance(this).disable();
             }
-
-            Log.i(TAG, "enabling Wifi AP");
-            mWifiManager.setWifiEnabled(false);
-            WifiApControl.getInstance(this).setEnabled(config, true);
-        } else {
-            Log.i(TAG, "disabling Wifi AP");
-            WifiApControl.getInstance(this).disable();
         }
 
     }
