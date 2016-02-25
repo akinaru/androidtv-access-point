@@ -23,16 +23,16 @@
     <string name="access_point_active">Activé</string>
     <string name="access_point_inactive">Désactivé</string>
     <string name="security_none">Aucune</string>
-
     <string name="information_title">Information</string>
     <string name="information_description"></string>
-
     <string name="access_point_ipv4">Adresse IP</string>
     <string name="access_point_ipv6">Adresse IPv6</string>
     <string name="access_point_mac">Adresse MAC</string>
-
     <string name="settings_action_title_6">Clients</string>
     <string name="settings_action_description_6"></string>
-
     <string name="connected_clients">client(s) connecté(s)</string>
+    <string name="client_title">Clients connectés</string>
+    <string name="client_description"></string>
+    <string name="new_client_connected_toast">Un nouvel appareil s\'est connecté au point d\'accès</string>
+    <string name="client_disconnected_toast">Un client s\'est déconnecté du point d\'accès</string>
 </resources>

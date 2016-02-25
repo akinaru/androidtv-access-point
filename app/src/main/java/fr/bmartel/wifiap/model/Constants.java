@@ -9,6 +9,10 @@ public class Constants {
 
     public final static Security DEFAULT_SECURITY = Security.WPA2_PSK;
 
+    public final static int GET_REACHABLE_CLIENT_INTERVAL = 5000;
+
+    public final static int REACHABLE_CLIENT_TIMEOUT = 1000;
+
     public final static int TIMEOUT_AP_ACTIVATION = 600;
 
     public final static String DEFAULT_SSID = "AccessPoint";

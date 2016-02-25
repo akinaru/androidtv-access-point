@@ -1,9 +1,9 @@
 package fr.bmartel.wifiap.inter;
 
-import java.util.List;
+import java.util.Map;
 
-import cc.mvdan.accesspoint.WifiApControl;
 import fr.bmartel.wifiap.enums.Security;
+import fr.bmartel.wifiap.listener.IClientListener;
 
 /**
  * Created by akinaru on 23/02/16.
@@ -20,5 +20,9 @@ public interface IApWrapper {
 
     String getMacAddr();
 
-    List<WifiApControl.Client> getClientList();
+    Map<String, String> getClientMap();
+
+    void setClientListener(IClientListener listener);
+
+    void restartRequestClient();
 }

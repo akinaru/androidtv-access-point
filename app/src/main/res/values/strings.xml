@@ -23,19 +23,16 @@
     <string name="access_point_active">Active</string>
     <string name="access_point_inactive">Inactive</string>
     <string name="security_none">None</string>
-
     <string name="information_title">Information</string>
     <string name="information_description"></string>
-
     <string name="access_point_ipv4">IP Address</string>
     <string name="access_point_ipv6">IPv6 Address</string>
     <string name="access_point_mac">MAC Address</string>
-
     <string name="settings_action_title_6">Clients</string>
     <string name="settings_action_description_6"></string>
-
     <string name="connected_clients">connected client(s)</string>
-
     <string name="client_title">Connected clients</string>
     <string name="client_description"></string>
+    <string name="new_client_connected_toast">A new client has connected to Wifi Access Point</string>
+    <string name="client_disconnected_toast">A client has disconnected from Wifi Access Point</string>
 </resources>

@@ -17,10 +17,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 
 import cc.mvdan.accesspoint.WifiApControl;
 import fr.bmartel.wifiap.R;
@@ -28,6 +25,7 @@ import fr.bmartel.wifiap.activity.PasswordActivity;
 import fr.bmartel.wifiap.enums.ConfigurationParam;
 import fr.bmartel.wifiap.inter.IApCommon;
 import fr.bmartel.wifiap.inter.IApWrapper;
+import fr.bmartel.wifiap.listener.IClientListener;
 import fr.bmartel.wifiap.model.Constants;
 
 /**
@@ -41,14 +39,13 @@ public class SettingsFragment extends GuidedStepFragment {
 
     private SharedPreferences sharedpreferences;
 
-    private ScheduledExecutorService scheduler;
+    private int mCurrentClientMapSize = 0;
 
-    private ScheduledFuture<?> task;
+    private String mCurrentApName = "";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         sharedpreferences = getActivity().getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
-        scheduler = Executors.newScheduledThreadPool(1);
         super.onCreate(savedInstanceState);
     }
 
@@ -66,22 +63,27 @@ public class SettingsFragment extends GuidedStepFragment {
         descriptionGa.setText(editTitle);
         getActions().get(1).setDescription(editTitle);
 
-        SharedPreferences.Editor editor = sharedpreferences.edit();
-        editor.putString(Constants.SSID, editTitle.toString());
-        editor.commit();
+        if (!editTitle.toString().equals(mCurrentApName)) {
 
-        final IApCommon accessPointWrapper = (IApCommon) getActivity();
+            mCurrentApName = editTitle.toString();
 
-        if (accessPointWrapper.getState()) {
-            Log.i(TAG, "restarting AP");
-            accessPointWrapper.setState(false);
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    accessPointWrapper.setState(true);
-                    accessPointWrapper.waitForActivation(getResources().getString(R.string.restarting_access_point), null);
-                }
-            }, Constants.TIMEOUT_AP_ACTIVATION);
+            SharedPreferences.Editor editor = sharedpreferences.edit();
+            editor.putString(Constants.SSID, editTitle.toString());
+            editor.commit();
+
+            final IApCommon accessPointWrapper = (IApCommon) getActivity();
+
+            if (accessPointWrapper.getState()) {
+                Log.i(TAG, "restarting AP");
+                accessPointWrapper.setState(false);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        accessPointWrapper.setState(true);
+                        accessPointWrapper.waitForActivation(getResources().getString(R.string.restarting_access_point), null);
+                    }
+                }, Constants.TIMEOUT_AP_ACTIVATION);
+            }
         }
     }
 
@@ -120,29 +122,18 @@ public class SettingsFragment extends GuidedStepFragment {
         addAction(actions, ConfigurationParam.SECURITY.ordinal(), getResources().getString(R.string.settings_action_title_3), securityStr);
         addAction(actions, ConfigurationParam.PASSWORD.ordinal(), getResources().getString(R.string.settings_action_title_4), getResources().getString(R.string.settings_action_description_4));
         addAction(actions, ConfigurationParam.INFORMATION.ordinal(), getResources().getString(R.string.settings_action_title_5), getResources().getString(R.string.settings_action_description_5));
-        addAction(actions, ConfigurationParam.CLIENTS.ordinal(), getResources().getString(R.string.settings_action_title_6), wrapper.getClientList().size() + " " + getResources().getString(R.string.connected_clients));
+        addAction(actions, ConfigurationParam.CLIENTS.ordinal(), getResources().getString(R.string.settings_action_title_6), wrapper.getClientMap().size() + " " + getResources().getString(R.string.connected_clients));
 
-        task = scheduler.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                getActivity().runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.i(TAG,"iterate");
-                        getActions().get(5).setDescription(wrapper.getClientList().size() + " " + getResources().getString(R.string.connected_clients));
-                        getGuidedActionsStylist().getActionsGridView().getAdapter().notifyDataSetChanged();
-                    }
-                });
-            }
-        }, 0, 1000, TimeUnit.MILLISECONDS);
+        mCurrentClientMapSize = wrapper.getClientMap().size();
+        mCurrentApName = wrapper.getName();
     }
+
 
     @Override
     public void onPause() {
         super.onPause();
-        if (task != null) {
-            task.cancel(true);
-        }
+        IApWrapper wrapper = (IApWrapper) getActivity();
+        wrapper.setClientListener(null);
     }
 
     @Override
@@ -222,10 +213,38 @@ public class SettingsFragment extends GuidedStepFragment {
         getActions().get(2).setDescription(securityStr);
         getActions().get(1).setDescription(name);
         String state = getActivity().getResources().getString(R.string.access_point_inactive);
-        ;
+
         if (accessPointWrapper.getState())
             state = getActivity().getResources().getString(R.string.access_point_active);
-        ;
+
         getActions().get(0).setDescription(state);
+
+        wrapper.setClientListener(new IClientListener() {
+            @Override
+            public void onListRequested(final Map<String, String> clientMap) {
+                if (clientMap.size() != mCurrentClientMapSize) {
+
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            getActions().get(5).setDescription(clientMap.size() + " " + getResources().getString(R.string.connected_clients));
+                            getGuidedActionsStylist().getActionsGridView().getAdapter().notifyDataSetChanged();
+                            /*
+                            if (!mFirstRequestList) {
+                                if (mCurrentClientMapSize < clientMap.size())
+                                    Toast.makeText(getActivity(), getResources().getString(R.string.new_client_connected_toast), Toast.LENGTH_SHORT).show();
+                                else
+                                    Toast.makeText(getActivity(), getResources().getString(R.string.client_disconnected_toast), Toast.LENGTH_SHORT).show();
+                            } else {
+                                mFirstRequestList = false;
+                            }
+                            */
+                            mCurrentClientMapSize = clientMap.size();
+                        }
+                    });
+                }
+            }
+        });
+        wrapper.restartRequestClient();
     }
 }

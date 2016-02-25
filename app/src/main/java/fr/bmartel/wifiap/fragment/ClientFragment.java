@@ -13,14 +13,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
-import cc.mvdan.accesspoint.WifiApControl;
 import fr.bmartel.wifiap.R;
 import fr.bmartel.wifiap.inter.IApWrapper;
+import fr.bmartel.wifiap.listener.IClientListener;
 
 /**
  * Created by iLab on 11/12/2015
@@ -33,15 +29,10 @@ public class ClientFragment extends GuidedStepFragment {
 
     private Map<String, GuidedAction> mKeyTable = new HashMap<>();
 
-    private int count = 0;
-
-    private ScheduledExecutorService scheduler;
-
-    private ScheduledFuture<?> task;
+    private int mCount = 0;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        scheduler = Executors.newScheduledThreadPool(1);
         super.onCreate(savedInstanceState);
     }
 
@@ -64,48 +55,44 @@ public class ClientFragment extends GuidedStepFragment {
 
         final IApWrapper wrapper = (IApWrapper) getActivity();
 
-        task = scheduler.scheduleAtFixedRate(new Runnable() {
+        wrapper.setClientListener(new IClientListener() {
             @Override
-            public void run() {
+            public void onListRequested(Map<String, String> clientMap) {
 
-                final List<WifiApControl.Client> clientList = wrapper.getClientList();
+                Iterator it = clientMap.entrySet().iterator();
+                while (it.hasNext()) {
+                    Map.Entry<String, String> pair = (Map.Entry) it.next();
 
-                for (int i = 0; i < clientList.size(); i++) {
+                    if (!mClientMap.containsKey(pair.getKey())) {
 
-                    if (!mClientMap.containsKey(clientList.get(i).hwAddr)) {
-
-                        mClientMap.put(clientList.get(i).hwAddr, clientList.get(i).ipAddr);
+                        mClientMap.put(pair.getKey(), pair.getValue());
 
                         Log.i(TAG, "add client");
-                        final WifiApControl.Client client = clientList.get(i);
+                        final String hwAddr = pair.getKey();
+                        final String ipAddr = pair.getValue();
 
                         getActivity().runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                count++;
-                                GuidedAction action = addAction(actions, count, client.ipAddr, client.hwAddr);
-                                mKeyTable.put(client.hwAddr, action);
+                                mCount++;
+                                GuidedAction action = addAction(actions, mCount, ipAddr, hwAddr);
+                                mKeyTable.put(hwAddr, action);
                                 setActions(actions);
                                 getGuidedActionsStylist().getActionsGridView().getAdapter().notifyDataSetChanged();
                             }
                         });
 
                     }
+
                 }
 
-                Iterator it = mClientMap.entrySet().iterator();
+                Iterator it2 = mClientMap.entrySet().iterator();
 
-                while (it.hasNext()) {
-                    final Map.Entry<String, String> pair = (Map.Entry) it.next();
+                while (it2.hasNext()) {
 
-                    boolean found = false;
+                    final Map.Entry<String, String> pair = (Map.Entry) it2.next();
 
-                    for (int i = 0; i < clientList.size(); i++) {
-                        if (clientList.get(i).hwAddr.equals(pair.getKey()))
-                            found = true;
-                    }
-
-                    if (!found) {
+                    if (!clientMap.containsKey(pair.getKey())) {
                         Log.i(TAG, "removing client");
                         final GuidedAction action = mKeyTable.get(pair.getKey());
                         getActivity().runOnUiThread(new Runnable() {
@@ -116,19 +103,21 @@ public class ClientFragment extends GuidedStepFragment {
                                 getGuidedActionsStylist().getActionsGridView().getAdapter().notifyDataSetChanged();
                             }
                         });
-                        mClientMap.remove(pair.getKey());
+                        it2.remove();
                     }
                 }
+
             }
-        }, 0, 1000, TimeUnit.MILLISECONDS);
+        });
+
+        wrapper.restartRequestClient();
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        if (task != null) {
-            task.cancel(true);
-        }
+        IApWrapper wrapper = (IApWrapper) getActivity();
+        wrapper.setClientListener(null);
     }
 
     @Override

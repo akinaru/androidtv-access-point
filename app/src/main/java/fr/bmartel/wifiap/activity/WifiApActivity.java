@@ -18,10 +18,14 @@ import android.util.Log;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import cc.mvdan.accesspoint.WifiApControl;
 import fr.bmartel.wifiap.R;
@@ -29,6 +33,7 @@ import fr.bmartel.wifiap.enums.Security;
 import fr.bmartel.wifiap.fragment.SettingsFragment;
 import fr.bmartel.wifiap.inter.IApCommon;
 import fr.bmartel.wifiap.inter.IApWrapper;
+import fr.bmartel.wifiap.listener.IClientListener;
 import fr.bmartel.wifiap.model.Constants;
 
 public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
@@ -39,17 +44,28 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
     private static final int REQUEST_WRITE_SETTINGS = 1;
 
-    private SharedPreferences sharedpreferences;
+    private SharedPreferences mSharedpreferences;
 
     private final static String TAG = WifiApActivity.class.getSimpleName();
 
-    private int schedulingCounter = 0;
+    private int mSchedulingCounter = 0;
+
+    private Map<String, String> mClientMap = new HashMap<>();
+
+    private IClientListener mListener;
+
+    private ScheduledExecutorService mScheduler;
+
+    private ScheduledFuture<?> mTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        mScheduler = Executors.newScheduledThreadPool(1);
+
         super.onCreate(savedInstanceState);
 
-        sharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
+        mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
 
         if (savedInstanceState == null) {
             GuidedStepFragment.addAsRoot(this, new SettingsFragment(), android.R.id.content);
@@ -80,6 +96,38 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
         mAPControl = WifiApControl.getInstance(this);
     }
 
+    private void startTask() {
+
+        mTask = mScheduler.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                mClientMap.clear();
+                mAPControl.getReachableClients(Constants.REACHABLE_CLIENT_TIMEOUT,
+                        new WifiApControl.ReachableClientListener() {
+                            public void onReachableClient(final WifiApControl.Client client) {
+                                mClientMap.put(client.hwAddr, client.ipAddr);
+                            }
+
+                            public void onComplete() {
+
+                                mAPControl.getReachableClients(Constants.REACHABLE_CLIENT_TIMEOUT,
+                                        new WifiApControl.ReachableClientListener() {
+                                            public void onReachableClient(final WifiApControl.Client client) {
+                                                mClientMap.put(client.hwAddr, client.ipAddr);
+                                            }
+
+                                            public void onComplete() {
+                                                if (mListener != null) {
+                                                    mListener.onListRequested(mClientMap);
+                                                }
+                                            }
+                                        });
+                            }
+                        });
+            }
+        }, 0, Constants.GET_REACHABLE_CLIENT_INTERVAL, TimeUnit.MILLISECONDS);
+    }
+
     @Override
     public boolean getState() {
         return WifiApControl.getInstance(this).isEnabled();
@@ -87,12 +135,12 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
     @Override
     public String getName() {
-        return sharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
+        return mSharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
     }
 
     @Override
     public Security getSecurity() {
-        return Security.getSecurity(sharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()));
+        return Security.getSecurity(mSharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()));
     }
 
     @Override
@@ -119,14 +167,20 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
     }
 
     @Override
-    public List<WifiApControl.Client> getClientList() {
-        if (WifiApControl.getInstance(this).getClients() != null)
-            return WifiApControl.getInstance(this).getClients();
-        else {
+    public Map<String, String> getClientMap() {
+        return mClientMap;
+    }
 
-            Log.i(TAG,"null");
-            return new ArrayList<>();
-        }
+    @Override
+    public void setClientListener(IClientListener listener) {
+        mListener = listener;
+    }
+
+    @Override
+    public void restartRequestClient() {
+        if (mTask != null)
+            mTask.cancel(true);
+        startTask();
     }
 
     @Override
@@ -134,17 +188,17 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
         if (state) {
             WifiConfiguration config = new WifiConfiguration();
-            config.SSID = sharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
+            config.SSID = mSharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
             config.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
 
             String defaultKey = "";
             if (WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey != null)
                 defaultKey = WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey;
 
-            config.preSharedKey = sharedpreferences.getString(Constants.PASSWORD, defaultKey);
+            config.preSharedKey = mSharedpreferences.getString(Constants.PASSWORD, defaultKey);
             config.hiddenSSID = false;
 
-            switch (Security.getSecurity(sharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()))) {
+            switch (Security.getSecurity(mSharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()))) {
                 case WPA_PSK:
                     config.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
                     config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
@@ -177,13 +231,13 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
         final Timer timer = new Timer();
 
-        schedulingCounter = 0;
+        mSchedulingCounter = 0;
 
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
 
-                schedulingCounter++;
+                mSchedulingCounter++;
                 if (getState()) {
                     timer.cancel();
                     runOnUiThread(new Runnable() {
@@ -196,11 +250,19 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
                         task.run();
                     }
                 }
-                if (schedulingCounter == 6) {
+                if (mSchedulingCounter == 6) {
                     timer.cancel();
                     return;
                 }
             }
         }, 0, 500);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mListener = null;
+        if (mTask != null)
+            mTask.cancel(true);
     }
 }
