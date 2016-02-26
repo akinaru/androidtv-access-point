@@ -198,6 +198,9 @@ public class PasswordActivity extends FragmentActivity implements IApPassword, I
                             Toast.makeText(PasswordActivity.this, getResources().getString(R.string.error_connection), Toast.LENGTH_SHORT).show();
                         }
                     });
+                    if (task != null) {
+                        task.run();
+                    }
                     if (mScheduledActivation != null)
                         mScheduledActivation.cancel(true);
                     return;
