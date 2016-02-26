@@ -2,7 +2,7 @@
 
 [![License](http://img.shields.io/:license-mit-blue.svg)](LICENSE.md)
 
-An Android TV application used to configure your Wifi Access Point
+An Android TV application used to configure your Wifi Access Point (for Android L only)
 
 ![screenshot](screen/screen.gif)
 
@@ -19,16 +19,16 @@ Pros :
 
 Cons :
 * uses private APIs that may not be available on devices
-* doesnt work on some devices (see incompatible device list)
-* doesnt work on Android M due to `android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS` intent which is required to be exposed by a System Activity. On Android TV, Google `Settings` applications is not installed, only `TvSettings` application is installed which doesnt have this intent
+* doesnt work on some devices (see incompatible device list) - require AOSP patches to fix Wifi Tethering (didnt work on first releases)
+* doesnt work on Android M due to `android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS` intent which is required to be exposed by a System Activity. On Android TV, Google `Settings` applications is not present, only `TvSettings` application is installed which doesnt have this intent
 
 ## Compatible devices
 
-* Bbox Miami
+* Bbox Miami (5.1.1)
 
 ## Incompatible devices
 
-* Sony Bravia 4K
+* Sony Bravia 4K (5.1.1)
 
 There seems to have a System service restarting Wifi automatically every second preventing AP to setup :
 ```
@@ -39,7 +39,10 @@ I/BluetoothResetService_nat_v1.8: bt driver status = 1, if reture 0, bt framewor
 I/BluetoothResetService_v3.11: bt and wifi Status is normal, nothing to do
 ```
 
-* Philips 32PFH5500
+<hr/>
+
+* Philips 32PFH5500 (5.1.1)
+* Freebox Mini 4K (5.0.2)
 
 We have an error coming from AP configuration at `netd` level on this device :
 ```
@@ -49,8 +52,8 @@ E/WifiStateMachine: Exception in softap re-start java.lang.IllegalArgumentExcept
 
 ## Not tested
 
-* Nexus Player
-* Nvida Shield
+* Nexus Player (5.1.1)
+* Nvida Shield (5.1.1)
 
 ## External Lib
 
