@@ -1,7 +1,7 @@
 # Wifi AP configuration for Android TV #
 
 [![Build Status](https://travis-ci.org/akinaru/androidtv-access-point.svg?branch=master)](https://travis-ci.org/akinaru/androidtv-access-point)
-[![Hex.pm](https://img.shields.io/hexpm/l/plug.svg)](LICENSE.md)
+[![License](https://img.shields.io/hexpm/l/plug.svg)](LICENSE.md)
 
 An Android TV application used to configure your Wifi Access Point (for Android L only, this wont work on Android M)
 
@@ -65,4 +65,18 @@ E/WifiStateMachine: Exception in softap re-start java.lang.IllegalArgumentExcept
 
 ## License
 
-Apache v2 License Copyright (c) 2016 Bertrand Martel
+```
+Copyright 2016 Bertrand Martel
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
