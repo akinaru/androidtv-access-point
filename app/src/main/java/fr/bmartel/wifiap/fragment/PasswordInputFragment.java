@@ -164,7 +164,7 @@ public class PasswordInputFragment extends Fragment {
             }
         });
 
-        textObsufactionToggle.setChecked(true);
+        textObsufactionToggle.setChecked(false);
 
         if (textObsufactionToggle.isChecked()) {
             mTextInput.setTransformationMethod(new PasswordTransformationMethod());
