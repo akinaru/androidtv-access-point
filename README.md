@@ -1,12 +1,13 @@
 # Wifi AP configuration for Android TV #
 
-[![License](http://img.shields.io/:license-mit-blue.svg)](LICENSE.md)
+[![Build Status](https://travis-ci.org/akinaru/androidtv-access-point.svg?branch=master)](https://travis-ci.org/akinaru/androidtv-access-point)
+[![Hex.pm](https://img.shields.io/hexpm/l/plug.svg)](LICENSE.md)
 
 An Android TV application used to configure your Wifi Access Point (for Android L only, this wont work on Android M)
 
 ![screenshot](screen/screen.gif)
 
-This application uses private API for enabling/disabling Access Point. It may not be working on your Android TV distrib.
+This application uses private API for enabling/disabling Access Point. It may not be working on your Android TV
 
 ## Requirements
 
