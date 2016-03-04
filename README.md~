@@ -6,8 +6,6 @@ An Android TV application used to configure your Wifi Access Point (for Android 
 
 ![screenshot](screen/screen.gif)
 
-This application uses private API for enabling/disabling Access Point. It may not be working on your Android TV distrib.
-
 ## Requirements
 
 Android TV 5.0 (sdk 21) or Android TV 5.1.1 (sdk 22)
@@ -45,7 +43,7 @@ I/BluetoothResetService_v3.11: bt and wifi Status is normal, nothing to do
 
 * Philips 32PFH5500 (5.1.1)
 * Freebox Mini 4K (5.0.2)
-* Nexus Player Android 5.0/5.1.1
+* Nexus Player Android 5.0/5.1
 
 We have an error coming from AP configuration at `netd` level on these devices :
 ```
@@ -55,7 +53,7 @@ E/WifiStateMachine: Exception in softap re-start java.lang.IllegalArgumentExcept
 
 ## Not tested
 
-* Nvidia Shield (5.1.1)
+* Nexus Player (5.1.1)
 
 ## External Lib
 
