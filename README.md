@@ -1,6 +1,6 @@
 # Wifi AP configuration for Android TV #
 
-[![Build Status](https://travis-ci.org/akinaru/androidtv-access-point.svg?branch=master)](https://travis-ci.org/akinaru/androidtv-access-point)
+[![Build Status](https://travis-ci.org/bertrandmartel/androidtv-access-point.svg?branch=master)](https://travis-ci.org/bertrandmartel/androidtv-access-point)
 [![License](https://img.shields.io/hexpm/l/plug.svg)](LICENSE.md)
 
 An Android TV application used to configure your Wifi Access Point (for Android L only, this wont work on Android M)
