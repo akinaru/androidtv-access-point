@@ -18,33 +18,24 @@
 package fr.bmartel.wifiap.activity;
 
 import android.app.Activity;
-import android.app.ProgressDialog;
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.support.v17.leanback.app.GuidedStepFragment;
-import android.util.Log;
-import android.widget.Toast;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import cc.mvdan.accesspoint.WifiApControl;
-import fr.bmartel.wifiap.R;
 import fr.bmartel.wifiap.enums.Security;
 import fr.bmartel.wifiap.fragment.SettingsFragment;
 import fr.bmartel.wifiap.inter.IApCommon;
 import fr.bmartel.wifiap.inter.IApWrapper;
 import fr.bmartel.wifiap.listener.IClientListener;
 import fr.bmartel.wifiap.model.Constants;
+import fr.bmartel.wifiap.singleton.ApSingleton;
 
 /**
  * Main activity
@@ -53,27 +44,7 @@ import fr.bmartel.wifiap.model.Constants;
  */
 public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
-    /**
-     * Wifi manager
-     */
-    private WifiManager mWifiManager;
-
-    /**
-     * Wifi Acces point manager
-     */
-    private WifiApControl mAPControl;
-
-    /**
-     * shared preferences instance
-     */
-    private SharedPreferences mSharedpreferences;
-
     private final static String TAG = WifiApActivity.class.getSimpleName();
-
-    /**
-     * counter for AP activation timeout control
-     */
-    private int mSchedulingCounter = 0;
 
     /**
      * map of clients connecte to AP
@@ -86,27 +57,18 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
     private IClientListener mListener;
 
     /**
-     * scheduled threadpool of size 1
-     */
-    private ScheduledExecutorService mScheduler;
-
-    /**
      * task looking for connected clients
      */
     private ScheduledFuture<?> mTask;
 
-    /**
-     * task looking for AP activation state
-     */
-    private ScheduledFuture<?> mScheduledActivation;
+    private ApSingleton mSingleton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
-        mScheduler = Executors.newScheduledThreadPool(1);
-        mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
-
         super.onCreate(savedInstanceState);
+
+        mSingleton = ApSingleton.getInstance(this);
 
         if (savedInstanceState == null) {
             GuidedStepFragment.addAsRoot(this, new SettingsFragment(), android.R.id.content);
@@ -140,10 +102,6 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
             return;
         }
         */
-
-        mWifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-
-        mAPControl = WifiApControl.getInstance(this);
     }
 
     /**
@@ -151,11 +109,11 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
      */
     private void starLookingForClient() {
 
-        mTask = mScheduler.scheduleAtFixedRate(new Runnable() {
+        mTask = mSingleton.getScheduler().scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 mClientMap.clear();
-                mAPControl.getReachableClients(Constants.REACHABLE_CLIENT_TIMEOUT,
+                mSingleton.getApControl().getReachableClients(Constants.REACHABLE_CLIENT_TIMEOUT,
                         new WifiApControl.ReachableClientListener() {
                             public void onReachableClient(final WifiApControl.Client client) {
                                 mClientMap.put(client.hwAddr, client.ipAddr);
@@ -163,7 +121,7 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
                             public void onComplete() {
 
-                                mAPControl.getReachableClients(Constants.REACHABLE_CLIENT_TIMEOUT,
+                                mSingleton.getApControl().getReachableClients(Constants.REACHABLE_CLIENT_TIMEOUT,
                                         new WifiApControl.ReachableClientListener() {
                                             public void onReachableClient(final WifiApControl.Client client) {
                                                 mClientMap.put(client.hwAddr, client.ipAddr);
@@ -182,24 +140,13 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
     }
 
     @Override
-    public boolean getState() {
-        if (WifiApControl.getInstance(this) != null)
-            return WifiApControl.getInstance(this).isEnabled();
-        return false;
-    }
-
-    @Override
     public String getName() {
-        if (mSharedpreferences == null)
-            mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
-        return mSharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
+        return mSingleton.getSharedPref().getString(Constants.SSID, Constants.DEFAULT_SSID);
     }
 
     @Override
     public Security getSecurity() {
-        if (mSharedpreferences == null)
-            mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
-        return Security.getSecurity(mSharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()));
+        return Security.getSecurity(mSingleton.getSharedPref().getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()));
     }
 
     @Override
@@ -224,8 +171,10 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
 
     @Override
     public String getMacAddr() {
-        if (mWifiManager != null && mWifiManager.getConnectionInfo() != null && mWifiManager.getConnectionInfo().getMacAddress() != null)
-            return mWifiManager.getConnectionInfo().getMacAddress();
+        if (mSingleton.getWifiManager() != null &&
+                mSingleton.getWifiManager().getConnectionInfo() != null &&
+                mSingleton.getWifiManager().getConnectionInfo().getMacAddress() != null)
+            return mSingleton.getWifiManager().getConnectionInfo().getMacAddress();
         return "";
     }
 
@@ -247,95 +196,8 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
     }
 
     @Override
-    public void setState(boolean state) {
-
-        if (mSharedpreferences == null)
-            mSharedpreferences = getSharedPreferences(Constants.PREFERENCES, Context.MODE_PRIVATE);
-
-        if (WifiApControl.getInstance(this) != null) {
-            if (state) {
-                WifiConfiguration config = new WifiConfiguration();
-                config.SSID = mSharedpreferences.getString(Constants.SSID, Constants.DEFAULT_SSID);
-                config.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
-
-                String defaultKey = "";
-                if (WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey != null)
-                    defaultKey = WifiApControl.getInstance(this).getWifiApConfiguration().preSharedKey;
-
-                config.preSharedKey = mSharedpreferences.getString(Constants.PASSWORD, defaultKey);
-                config.hiddenSSID = false;
-
-                switch (Security.getSecurity(mSharedpreferences.getInt(Constants.SECURITY, Constants.DEFAULT_SECURITY.ordinal()))) {
-                    case WPA_PSK:
-                        config.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
-                        config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
-                        config.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
-                        config.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
-                        break;
-                    case WPA2_PSK:
-                        config.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
-                        config.allowedKeyManagement.set(4);
-                        config.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
-                        config.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
-                        break;
-                }
-
-                Log.i(TAG, "enabling Wifi AP");
-
-                mWifiManager.setWifiEnabled(false);
-                WifiApControl.getInstance(this).setEnabled(config, true);
-            } else {
-                Log.i(TAG, "disabling Wifi AP");
-                WifiApControl.getInstance(this).disable();
-            }
-        }
-    }
-
-    @Override
-    public void waitForActivation(String message, final Runnable task) {
-
-        final ProgressDialog progress = ProgressDialog.show(this, getResources().getString(R.string.dialog_access_point_activation),
-                message + "...", true);
-
-        mSchedulingCounter = 0;
-
-
-        mScheduledActivation = mScheduler.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-
-                mSchedulingCounter++;
-                if (getState()) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            progress.dismiss();
-                        }
-                    });
-                    if (task != null) {
-                        task.run();
-                    }
-                    if (mScheduledActivation != null)
-                        mScheduledActivation.cancel(true);
-                    return;
-                }
-                if (mSchedulingCounter == 6) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            progress.dismiss();
-                            Toast.makeText(WifiApActivity.this, getResources().getString(R.string.error_connection), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                    if (task != null) {
-                        task.run();
-                    }
-                    if (mScheduledActivation != null)
-                        mScheduledActivation.cancel(true);
-                    return;
-                }
-            }
-        }, 0, 500, TimeUnit.MILLISECONDS);
+    public void onBackPressed() {
+        super.onBackPressed();
     }
 
     @Override
@@ -344,7 +206,22 @@ public class WifiApActivity extends Activity implements IApWrapper, IApCommon {
         mListener = null;
         if (mTask != null)
             mTask.cancel(true);
-        if (mScheduledActivation != null)
-            mScheduledActivation.cancel(true);
+        if (mSingleton.getScheduledActivation() != null)
+            mSingleton.getScheduledActivation().cancel(true);
+    }
+
+    @Override
+    public boolean getState() {
+        return mSingleton.getState();
+    }
+
+    @Override
+    public void setState(boolean state) {
+        mSingleton.setState(state);
+    }
+
+    @Override
+    public void waitForActivation(String message, Runnable task) {
+        mSingleton.waitForActivation(message, task);
     }
 }
